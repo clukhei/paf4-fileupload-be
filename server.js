@@ -27,6 +27,7 @@ const pool = mysql.createPool({
 })
 
 const SQL_UPLOADIMG = `UPDATE guests SET guest_image = ? WHERE id = 1`
+const SQL_DOWNLOADIMG = `SELECT guest_image FROM guests WHERE id = 1`
 app.post('/db/upload', multipart.single("imgFile"),(req,res)=> {
     console.log("originalname:",req.file.originalname)
     console.log("mimetype:",req.file.mimetype)
@@ -53,6 +54,27 @@ app.post('/db/upload', multipart.single("imgFile"),(req,res)=> {
 })
 
 
+app.get('/db/download' ,async(req,res)=> {
+    const conn = await pool.getConnection()
+    try{
+        const [results, _ ]= await conn.query(SQL_DOWNLOADIMG)
+
+        if (results.length > 0){
+            res.status(200)
+            //converts utf to img 
+            res.type(imageType(results[0].guest_image).mime)
+            res.send(results[0].guest_image)
+        } else {
+            res.status(404)
+            res.end()
+        }
+        
+    }catch(e){
+        console.log(e)
+    }finally{
+        conn.release()
+    }
+})
 
 
 
