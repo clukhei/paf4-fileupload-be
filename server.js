@@ -75,6 +75,7 @@ app.post('/upload2', multipart.single("image-file"), (req,res)=> {
             Bucket: AWS_S3_BUCKETNAME,
             Key: req.file.filename,
             Body: imgFile,
+            ACL: 'public-read',
             Metadata: {
                 originalName: req.file.originalname,
                 update: ''+ (new Date()).getTime(),
@@ -84,10 +85,12 @@ app.post('/upload2', multipart.single("image-file"), (req,res)=> {
 
             }
         }
+
+        
         s3.putObject(params, (error, result)=> {
             return res.status(200)
                 .type('application/json')
-                .json({'key': req.file.filename})
+                .json({'key': process.env.BASE_URL+req.file.filename})
         })
         
     })
