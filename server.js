@@ -8,12 +8,55 @@ const imageType = require('image-type')
 const fs = require('fs')
 const cors = require('cors')
 const path = require('path')
+const mysql = require("mysql2/promise")
 
+const multipart = multer({dest: path.join(__dirname, 'uploads')})
 
 const app = express()
 app.use(cors())
 app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 app.use(bodyParser.json({ limit: "50mb" }));
+
+const pool = mysql.createPool({
+    host: process.env.MYSQL_SERVER,
+    port: process.env.MYSQL_SVR_PORT,
+	user: process.env.MYSQL_USERNAME,
+	password: process.env.MYSQL_PASSWORD,
+	database: process.env.MYSQL_SCHEMA,
+	connectionLimit: process.env.MYSQL_CON_LIMIT,
+})
+
+const SQL_UPLOADIMG = `UPDATE guests SET guest_image = ? WHERE id = 1`
+app.post('/db/upload', multipart.single("imgFile"),(req,res)=> {
+    console.log("originalname:",req.file.originalname)
+    console.log("mimetype:",req.file.mimetype)
+    console.log("filename:",req.file.filename)
+    console.log("path:", req.file.path)
+    console.log("size:", req.file.size)
+    console.log("comment", req.body.notes)
+
+    const uploadFile = path.join(__dirname, "uploads", req.file.filename)
+    fs.readFile(uploadFile, async(err, imgFile)=> {
+        console.log(imgFile)
+        const conn = await pool.getConnection()
+        try{
+            if (err) throw err
+           const response = await conn.query(SQL_UPLOADIMG, [imgFile])
+           console.log(response)
+           res.status(201).json({message: 'saved'})
+        } catch(e){
+            console.log(e)
+        }finally {
+            conn.release()
+        }
+    })
+})
+
+
+
+
+
+
 
 
 const APP_PORT = process.env.APP_PORT
@@ -36,7 +79,7 @@ const upload = multer({
         bucket: AWS_S3_BUCKETNAME,
         acl: 'public-read',
         metadata: function(req,file,cb){
-            console.log(file)
+            console.log(req.file)
             cb(null,{
                 fileName: file.fieldname,
                 originalFile: file.originalname,
@@ -66,7 +109,7 @@ app.post('/upload', (req,res,next)=> {
     })
 })
 
-const multipart = multer({dest: path.join(__dirname, 'uploads')})
+
 
 app.post('/upload2', multipart.single("image-file"), (req,res)=> {
     fs.readFile(req.file.path, (err, imgFile)=> {
@@ -109,6 +152,24 @@ app.get('/download2/:key', (req,res)=> {
         res.status(200).send(fileData)
     })
 })
-app.listen(APP_PORT, ()=> {
-    console.log(`${APP_PORT} started`)
+
+
+const startApp = async (app, pool) => {
+    const conn = await pool.getConnection()
+    try{
+        console.log('pinging database')
+        await conn.ping()
+        app.listen(APP_PORT, ()=> {
+            console.log(`${APP_PORT} started`)
+        })
+    }catch(e){
+        console.log(e)
+    }finally{
+        conn.release()
+    }
+}
+
+app.use((req,res)=> {
+    res.redirect('/')
 })
+startApp(app,pool)
