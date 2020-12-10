@@ -93,6 +93,19 @@ app.post('/upload2', multipart.single("image-file"), (req,res)=> {
     })
   
 })
+
+app.get('/download2/:key', (req,res)=> {
+    const keyFileName = req.params.key  
+    const params = {
+        Bucket: AWS_S3_BUCKETNAME,
+        Key: keyFileName
+    }
+    s3.getObject(params, (err, result)=> {
+        if (err) console.log(err)
+        let fileData= result.Body.toString('utf-8');
+        res.status(200).send(fileData)
+    })
+})
 app.listen(APP_PORT, ()=> {
     console.log(`${APP_PORT} started`)
 })
