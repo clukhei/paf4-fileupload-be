@@ -26,8 +26,75 @@ const pool = mysql.createPool({
 	connectionLimit: process.env.MYSQL_CON_LIMIT,
 })
 
-const SQL_UPLOADIMG = `UPDATE guests SET guest_image = ? WHERE id = 1`
+const SQL_UPLOADIMG = `UPDATE guests SET guest_image = ? WHERE id = ?`
 const SQL_DOWNLOADIMG = `SELECT guest_image FROM guests WHERE id = 1`
+
+app.post('/db/upload/array', multipart.array("imgFile",2), (req,res)=> {
+
+    const pathArray = []
+    const uploadFileOne = path.join(__dirname, "uploads", req.files[0].filename)
+    const uploadFileTwo = path.join(__dirname, "uploads", req.files[1].filename)
+    pathArray.push(uploadFileOne, uploadFileTwo)
+    const readFilePromise = function(file){
+        return new Promise(function(resolve,reject){
+            fs.readFile(file, function(err, data){
+                if (err){
+                    reject(err)
+                }else {
+                resolve(data)
+                }
+            })
+        })
+    }
+    Promise.all([readFilePromise(pathArray[0]), readFilePromise(pathArray[1])])
+        .then(([d1,d2]) => {
+            console.log(d1)
+            console.log(d2)
+            conn.query(SQL_UPLOADIMG)
+        })
+    // pathArray.forEach(p => {
+    //     fs.readFile(p, (err, imgFile)=> {
+    //         console.log(imgFile)
+    //         readFileDataArray.push(imgFile)
+    //     })
+    // })
+    // console.log(readFileDataArray)
+ 
+    //  pathArray.forEach((p, i) => {
+    //     fs.readFile(p, async(err, imgFile)=> {
+    //         const conn = await pool.getConnection()
+    //     try{
+    //         if (err) throw err
+    //         console.log(i+1)
+    //        const response = await conn.query(SQL_UPLOADIMG, [imgFile, i+1])
+    //        console.log(response)
+     
+    //     } catch(e){
+    //         console.log(e)
+    //     }finally {
+    //         conn.release()
+    //     }
+    //     })
+     
+    // })
+    res.status(201).json({message: 'saved'})
+  
+    // fs.readFile(uploadFile, async(err, imgFile)=> {
+    //     console.log(imgFile)
+    //     const conn = await pool.getConnection()
+    //     try{
+    //         if (err) throw err
+    //        const response = await conn.query(SQL_UPLOADIMG, [imgFile])
+    //        console.log(response)
+    //        res.status(201).json({message: 'saved'})
+    //     } catch(e){
+    //         console.log(e)
+    //     }finally {
+    //         conn.release()
+    //     }
+    // })
+
+})
 app.post('/db/upload', multipart.single("imgFile"),(req,res)=> {
     console.log("originalname:",req.file.originalname)
     console.log("mimetype:",req.file.mimetype)
